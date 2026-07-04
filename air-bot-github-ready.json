@@ -1,0 +1,1834 @@
+{
+  "name": "air_bot",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        -528
+      ],
+      "id": "b71903c8-9e0b-4a0a-bc19-6dbcbfa9256d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "name": "Schedule",
+      "position": [
+        -384,
+        -608
+      ],
+      "id": "022323c4-a9a8-46e9-958d-24c3f32e4f0f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/getUpdates",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "name": "Get Updates",
+      "position": [
+        -160,
+        -608
+      ],
+      "id": "3b68b2a9-7830-4aed-bd61-9d98f925e41a"
+    },
+    {
+      "parameters": {
+        "jsCode": "const updates = $json.result || [];\nconst last = updates[updates.length - 1];\n\nif (!last) return [];\n\nreturn [{\n  json: {\n    update_id: last.update_id,\n    message_id: last.message?.message_id,\n    text: last.message?.text || '',\n    chat_id: last.message?.chat?.id || '',\n    ok: true\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "name": "Parse Message",
+      "position": [
+        64,
+        -608
+      ],
+      "id": "966a3168-26fc-45d7-bf67-e5159d144034"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "<YOUR_DATA_TABLE_ID>",
+          "mode": "list",
+          "cachedResultName": "air",
+          "cachedResultUrl": "<YOUR_DATA_TABLE_URL>"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "1"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "name": "Get Memory",
+      "position": [
+        224,
+        -608
+      ],
+      "alwaysOutputData": true,
+      "id": "9223a40f-9a00-4cd6-98e3-45d711215798"
+    },
+    {
+      "parameters": {
+        "jsCode": "const updateId = Number($node['Parse Message'].json.update_id || 0);\nconst lastId = Number($node['Get Memory'].json.last_update_id || 0);\n\nif (updateId > lastId) {\n  return [{\n    json: {\n      ok: true,\n      update_id: updateId,\n      message_id: $node['Parse Message'].json.message_id,\n      text: $node['Parse Message'].json.text,\n      chat_id: $node['Parse Message'].json.chat_id\n    }\n  }];\n}\n\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "name": "Filter New Message",
+      "position": [
+        448,
+        -608
+      ],
+      "id": "bb6affac-ee6c-4326-95e8-885c27842ae7"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "<YOUR_DATA_TABLE_ID>",
+          "mode": "list",
+          "cachedResultName": "air",
+          "cachedResultUrl": "<YOUR_DATA_TABLE_URL>"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "1"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "last_update_id": "={{ $json.update_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "last_update_id",
+              "displayName": "last_update_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "name": "Save Memory",
+      "position": [
+        624,
+        -608
+      ],
+      "id": "28bc226b-38c4-47ec-925c-c5c0559cfaac"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "📍 ارسال موقعیت مکانی لطفا از دکمه ها استفاده کنید"
+            },
+            {
+              "name": "reply_markup",
+              "value": "{\n  \"keyboard\": [\n    [\n      { \"text\": \"🏙️ زنجان\" },\n      { \"text\": \"🏙️ تهران\" }\n    ],\n    [\n      { \"text\": \"🏙️ کرج\" },\n      { \"text\": \"🏙️ مشهد\" }\n    ],\n    [\n      { \"text\": \"🏙️ شیراز\" },\n      { \"text\": \"🏙️ اهواز\" }\n    ],\n    [\n      { \"text\": \"🏙️ قزوین\" },\n      { \"text\": \"🏙️ تبریز\" }\n    ],\n    [\n      { \"text\": \"🏙️ قم\" },\n      { \"text\": \"🏙️ همدان\" }\n    ],\n    [\n      { \"text\": \"🏙️ زاهدان\" },\n      { \"text\": \"🏙️ اصفهان\" }\n    ]\n  ],\n  \"resize_keyboard\": true,\n  \"one_time_keyboard\": false\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -1264
+      ],
+      "id": "35e3ccb0-6cf1-4027-baf5-c9f72350c81b",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "/start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ زنجان",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ زنجان"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ تهران",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ تهران"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ کرج",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ کرج"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ مشهد",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ مشهد"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ شیراز",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ شیراز"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ اهواز",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ اهواز"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ قزوین",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "8"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ قزوین"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ تبریز",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ تبریز"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ قم",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "10"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ قم"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ همدان",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "11"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ همدان"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d2afe6d2-74e5-4a5f-8954-566e1417805c",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ زاهدان",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ زاهدان"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b83ebcf0-2c62-45bd-a3c6-bb4fec368847",
+                    "leftValue": "={{ $json.text }}",
+                    "rightValue": "🏙️ اصفهان",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "🏙️ اصفهان"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1008,
+        -720
+      ],
+      "id": "d04b6edb-d2f8-4a49-96fd-48922f39934d",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -1120
+      ],
+      "id": "8812eb66-d97e-4f90-a93a-1364d250b372",
+      "name": "HTML1"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/zanjan/211728/weather-forecast/211728",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -1120
+      ],
+      "id": "190e73e8-0d90-4831-aa7b-637bf1e96274",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -1120
+      ],
+      "id": "3409b8a4-d5f1-49aa-b242-6c23d2e1862c",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -960
+      ],
+      "id": "b23ca142-6b93-4716-931a-a6dddea93d5e",
+      "name": "HTML2"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/tehran/210841/weather-forecast/210841",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -960
+      ],
+      "id": "d6253ff9-ff05-43e0-bc65-c29cfecd75b0",
+      "name": "HTTP Request9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -960
+      ],
+      "id": "619f6bd0-f8b3-4bea-a1a6-54c27e197095",
+      "name": "HTTP Request10"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -816
+      ],
+      "id": "7d76d80c-83ef-4098-bed1-330bcd7d8811",
+      "name": "HTML3"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/karaj/211367/weather-forecast/211367",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -816
+      ],
+      "id": "98ff2c39-1d37-4aa5-a5a7-8fef3a4708f6",
+      "name": "HTTP Request11"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -816
+      ],
+      "id": "49749aaa-1dbe-4a81-8f68-a414a6391274",
+      "name": "HTTP Request12"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -672
+      ],
+      "id": "681113ff-6e49-45e7-a853-929797b21af5",
+      "name": "HTML4"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/mashhad/209737/weather-forecast/209737",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -672
+      ],
+      "id": "5cd6369c-661a-406e-97c9-4a3a262194bd",
+      "name": "HTTP Request13"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -672
+      ],
+      "id": "5a7c4545-968b-47da-98c8-285f5a352cd7",
+      "name": "HTTP Request14"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -384
+      ],
+      "id": "236d7cdb-0478-4fde-8ce2-31418fc87833",
+      "name": "HTML5"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/ahvaz/210047/weather-forecast/210047",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -384
+      ],
+      "id": "d8171445-0671-45c3-9d59-da44c0232604",
+      "name": "HTTP Request15"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -384
+      ],
+      "id": "2396d9e8-1feb-4fe3-9c39-4e1b5de4307b",
+      "name": "HTTP Request16"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -528
+      ],
+      "id": "07381ebf-dd3a-491f-aa44-8c1816d142ba",
+      "name": "HTML6"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/shiraz/208538/weather-forecast/208538",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -528
+      ],
+      "id": "604e755f-14fb-4e98-a297-45653cae557f",
+      "name": "HTTP Request17",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -528
+      ],
+      "id": "e4b33738-e064-46e9-a636-872094b6b322",
+      "name": "HTTP Request18"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -240
+      ],
+      "id": "999bce44-68bb-4cc2-8d38-40b124627777",
+      "name": "HTML7"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/qazvin/210816/weather-forecast/210816",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -240
+      ],
+      "id": "374c1fe4-eb03-4c3a-83b6-364fb20ae1e9",
+      "name": "HTTP Request19"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -240
+      ],
+      "id": "df55b644-642b-4ca2-9c90-0301f3100f8b",
+      "name": "HTTP Request20"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        -96
+      ],
+      "id": "7c8dbc74-01cf-4d0b-8feb-ad11ce3fc4a7",
+      "name": "HTML8"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/tabriz/207308/weather-forecast/207308",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        -96
+      ],
+      "id": "d1cf2fe7-a947-4814-b382-814cb3b2d811",
+      "name": "HTTP Request21"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        -96
+      ],
+      "id": "3e622b94-d7b0-4768-8fec-79794ea1907e",
+      "name": "HTTP Request22"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        48
+      ],
+      "id": "14b9e296-94f4-4ceb-9916-4a5a3b5089f4",
+      "name": "HTML9"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/qom/210842/weather-forecast/210842",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        48
+      ],
+      "id": "014abde9-44d5-4dd4-b296-265e2f30efde",
+      "name": "HTTP Request23"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        48
+      ],
+      "id": "6f3acc22-4b1d-4a37-83f4-8f5debf8910a",
+      "name": "HTTP Request24"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        176
+      ],
+      "id": "75a4aadc-6edd-4959-9808-0f2f7fceaac3",
+      "name": "HTML10"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/hamedan/208760/weather-forecast/208760",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        176
+      ],
+      "id": "61330f4f-0bf1-45e0-85a9-25e49ee2bdd7",
+      "name": "HTTP Request25"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        176
+      ],
+      "id": "b3d78f25-5059-4e3a-a338-2bc143587170",
+      "name": "HTTP Request26"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        496
+      ],
+      "id": "b8a8b86c-5894-4a35-bdf5-c2c09b194e72",
+      "name": "HTML11"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/isfahan/208194/weather-forecast/208194",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        496
+      ],
+      "id": "c5054cbd-7442-4200-a7b0-423141bba73d",
+      "name": "HTTP Request27"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        496
+      ],
+      "id": "961dc1e1-d061-4951-a6e2-502aea427adb",
+      "name": "HTTP Request28"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "temp",
+              "cssSelector": ".temp"
+            },
+            {
+              "key": "temp1",
+              "cssSelector": ".cur-con-weather-card__panel.details-container"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1680,
+        320
+      ],
+      "id": "afdbe363-f001-42b2-bc69-a20599d8005d",
+      "name": "HTML12"
+    },
+    {
+      "parameters": {
+        "url": "https://www.accuweather.com/fa/ir/zahedan/211207/weather-forecast/211207",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1552,
+        320
+      ],
+      "id": "56632caf-4966-49af-b078-ed596372ad82",
+      "name": "HTTP Request29"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('Switch2').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.temp }}\n{{ $json.temp1 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1808,
+        320
+      ],
+      "id": "a325f554-b534-4d59-9bf9-d15c5b9f280c",
+      "name": "HTTP Request30"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tapi.bale.ai/bot<YOUR_BALE_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "📍 ارسال موقعیت مکانی لطفا از دکمه ها استفاده کنید"
+            },
+            {
+              "name": "reply_markup",
+              "value": "{\n  \"keyboard\": [\n    [\n      { \"text\": \"🏙️ زنجان\" },\n      { \"text\": \"🏙️ تهران\" }\n    ],\n    [\n      { \"text\": \"🏙️ کرج\" },\n      { \"text\": \"🏙️ مشهد\" }\n    ],\n    [\n      { \"text\": \"🏙️ شیراز\" },\n      { \"text\": \"🏙️ اهواز\" }\n    ],\n    [\n      { \"text\": \"🏙️ قزوین\" },\n      { \"text\": \"🏙️ تبریز\" }\n    ],\n    [\n      { \"text\": \"🏙️ قم\" },\n      { \"text\": \"🏙️ همدان\" }\n    ],\n    [\n      { \"text\": \"🏙️ زاهدان\" },\n      { \"text\": \"🏙️ اصفهان\" }\n    ]\n  ],\n  \"resize_keyboard\": true,\n  \"one_time_keyboard\": false\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1568,
+        672
+      ],
+      "id": "e7b4fcf4-75b5-4556-9ca0-36f130960a70",
+      "name": "HTTP Request31"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Updates": {
+      "main": [
+        [
+          {
+            "node": "Parse Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Message": {
+      "main": [
+        [
+          {
+            "node": "Get Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Memory": {
+      "main": [
+        [
+          {
+            "node": "Filter New Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Message": {
+      "main": [
+        [
+          {
+            "node": "Save Memory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Save Memory": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request9",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request13",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request17",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request15",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request19",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request21",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request23",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request25",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request29",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request27",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request31",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request9": {
+      "main": [
+        [
+          {
+            "node": "HTML2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        [
+          {
+            "node": "HTML3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request13": {
+      "main": [
+        [
+          {
+            "node": "HTML4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request15": {
+      "main": [
+        [
+          {
+            "node": "HTML5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request18",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request17": {
+      "main": [
+        [
+          {
+            "node": "HTML6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML7": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request20",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request19": {
+      "main": [
+        [
+          {
+            "node": "HTML7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML8": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request22",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request21": {
+      "main": [
+        [
+          {
+            "node": "HTML8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML9": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request24",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request23": {
+      "main": [
+        [
+          {
+            "node": "HTML9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML10": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request26",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request25": {
+      "main": [
+        [
+          {
+            "node": "HTML10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML11": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request28",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request27": {
+      "main": [
+        [
+          {
+            "node": "HTML11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML12": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request30",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request29": {
+      "main": [
+        [
+          {
+            "node": "HTML12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8f9772df-3b3f-4262-8d68-124a87bbc496",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    },
+  "nodeGroups": [],
+  "id": "x8jX5bbXwIRWS3Ks",
+  "tags": []
+}
